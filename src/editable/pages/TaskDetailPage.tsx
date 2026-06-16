@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { CSSProperties } from 'react'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Bookmark, Building2, Camera, Download, ExternalLink, FileText, Globe2, Mail, MapPin, MessageCircle, Phone, Tag, UserRound } from 'lucide-react'
+import { ArrowLeft, Bookmark, Camera, Download, ExternalLink, FileText, Globe2, Mail, MapPin, MessageCircle, Phone, Tag } from 'lucide-react'
 import { buildPostMetadata, buildTaskMetadata } from '@/lib/seo'
 import { buildPostUrl, fetchArticleComments, fetchTaskPostBySlug, fetchTaskPosts } from '@/lib/task-data'
 import { getTaskConfig, SITE_CONFIG, type TaskKey } from '@/lib/site-config'
@@ -52,6 +52,30 @@ const getImages = (post: SitePost) => {
 const getBody = (post: SitePost) => {
   const content = getContent(post)
   return asText(content.body) || asText(content.description) || asText(content.details) || post.summary || 'Details will appear here once available.'
+}
+
+const cleanCopy = (value: string) => value.replace(/\s+/g, ' ').trim()
+
+const detailDescription = (task: TaskKey, post: SitePost) => {
+  const category = categoryOf(post, SITE_CONFIG.name).toLowerCase()
+  const raw = cleanCopy(summaryText(post))
+  if (task === 'sbm') {
+    return `A curated ${category} reference with the key context brought forward, so readers can understand the saved resource before opening the original destination.`
+  }
+  if (raw) return raw
+  return 'A summary will appear here when available.'
+}
+
+const detailBody = (task: TaskKey, post: SitePost) => {
+  const category = categoryOf(post, SITE_CONFIG.name).toLowerCase()
+  const rawBody = cleanCopy(getBody(post))
+  const rawSummary = cleanCopy(summaryText(post))
+  if (task === 'sbm') {
+    return `This saved collection entry organizes ${post.title} as a focused ${category} resource. Use the destination panel, category label, and related picks to decide whether this reference belongs in your next research step.`
+  }
+  if (rawBody && rawBody !== rawSummary) return getBody(post)
+  if (rawSummary) return `${rawSummary}\n\nAdditional context, source notes, and supporting details can be added here as this page develops.`
+  return getBody(post)
 }
 
 const escapeHtml = (value: string) => value
@@ -123,7 +147,7 @@ export function TaskDetailView({ task, post, related, comments = [] }: { task: T
 function BackLink({ task }: { task: TaskKey }) {
   const taskConfig = getTaskConfig(task)
   return (
-    <Link href={taskConfig?.route || '/'} className="inline-flex items-center gap-2 border border-[color:rgba(9,20,19,0.12)] bg-white px-4 py-3 text-sm font-semibold">
+    <Link href={taskConfig?.route || '/'} className="inline-flex items-center gap-2 border border-[color:rgba(9,20,19,0.14)] bg-white px-4 py-3 text-sm font-semibold transition hover:border-[var(--detail-accent)] hover:text-[var(--detail-accent)]">
       <ArrowLeft className="h-4 w-4" /> Back to {taskConfig?.label || 'posts'}
     </Link>
   )
@@ -145,24 +169,40 @@ function DetailShell({
   sideBottom?: React.ReactNode
 }) {
   const images = getImages(post)
+  const taskConfig = getTaskConfig(task)
   return (
-    <section className="mx-auto max-w-[1480px] px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
-      <BackLink task={task} />
-      <div className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1.05fr)_360px]">
-        <article className="border border-[color:rgba(9,20,19,0.1)] bg-[var(--detail-surface)] p-6 shadow-[0_18px_50px_rgba(9,20,19,0.06)] sm:p-8 lg:p-10">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[var(--detail-accent)]">{categoryOf(post, SITE_CONFIG.name)}</p>
-          <h1 className="mt-4 text-4xl font-semibold leading-[0.95] tracking-[-0.08em] sm:text-6xl lg:text-[4.4rem]">{post.title}</h1>
-          <p className="mt-6 max-w-3xl text-base leading-8 text-[var(--slot4-muted-text)]">{summaryText(post) || 'A summary will appear here when available.'}</p>
-          <div className="mt-8">{children}</div>
-          <BodyContent post={post} />
-          {task === 'article' ? null : <ImageStrip images={images.slice(1)} />}
+    <section className="border-b border-[color:rgba(9,20,19,0.08)] bg-[var(--detail-bg)]">
+      <div className="mx-auto max-w-[1480px] px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+        <BackLink task={task} />
+        <article className="mt-8 grid overflow-hidden border border-[color:rgba(9,20,19,0.1)] bg-[var(--detail-surface)] shadow-[0_24px_80px_rgba(9,20,19,0.08)] lg:grid-cols-[0.82fr_1.18fr]">
+          <div className="bg-[var(--slot4-cream)] px-6 py-8 sm:px-10 sm:py-12 lg:flex lg:min-h-[620px] lg:flex-col lg:justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[var(--detail-accent)]">{categoryOf(post, SITE_CONFIG.name)}</p>
+              <h1 className="mt-5 text-4xl font-semibold leading-[0.94] tracking-[-0.08em] sm:text-6xl lg:text-[4.7rem]">{post.title}</h1>
+              <p className="mt-7 max-w-xl text-base leading-8 text-[var(--slot4-muted-text)]">{detailDescription(task, post)}</p>
+            </div>
+            <div className="mt-10 grid gap-3 border-t border-[color:rgba(9,20,19,0.12)] pt-6 text-sm text-[var(--slot4-muted-text)] sm:grid-cols-2">
+              <span className="inline-flex items-center gap-2"><Bookmark className="h-4 w-4" /> {taskConfig?.label || task}</span>
+              <span className="inline-flex items-center gap-2"><Tag className="h-4 w-4" /> {SITE_CONFIG.name}</span>
+            </div>
+          </div>
+          <div className="p-5 sm:p-8 lg:p-10">
+            {children}
+          </div>
         </article>
-        <aside className="space-y-5">
+
+        <div className="grid gap-8 border-x border-b border-[color:rgba(9,20,19,0.08)] bg-white px-6 py-8 sm:px-10 sm:py-10 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div>
+            <BodyContent task={task} post={post} />
+            {task === 'article' ? null : <ImageStrip images={images.slice(1)} />}
+          </div>
+          <aside className="space-y-5 xl:-mt-24">
           {sideTop}
           <AboutPanel task={task} post={post} />
           {sideBottom}
           <RelatedPanel task={task} related={related} />
-        </aside>
+          </aside>
+        </div>
       </div>
     </section>
   )
@@ -170,8 +210,8 @@ function DetailShell({
 
 function HeroFrame({ post, tall = false }: { post: SitePost; tall?: boolean }) {
   return (
-    <div className="bg-[#303030] p-4 shadow-[0_14px_40px_rgba(9,20,19,0.15)]">
-      <div className="bg-white p-6 shadow-[inset_0_0_24px_rgba(9,20,19,0.14)]">
+    <div className="bg-[#303030] p-4 shadow-[0_14px_40px_rgba(9,20,19,0.15)] sm:p-5">
+      <div className="bg-white p-5 shadow-[inset_0_0_24px_rgba(9,20,19,0.14)] sm:p-7">
         <div className={`overflow-hidden bg-[var(--slot4-media-bg)] ${tall ? 'aspect-[3/4]' : 'aspect-[16/10]'}`}>
           <img src={getEditablePostImage(post)} alt={post.title} className="h-full w-full object-cover" />
         </div>
@@ -225,8 +265,8 @@ function ImageDetail({ task, post, related }: { task: TaskKey; post: SitePost; r
         <aside className="border border-[color:rgba(9,20,19,0.1)] bg-white p-6 shadow-[0_18px_50px_rgba(9,20,19,0.06)] xl:sticky xl:top-24 xl:self-start">
           <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--detail-accent)]"><Camera className="h-4 w-4" /> Visual gallery</div>
           <h1 className="mt-4 text-4xl font-semibold leading-[0.95] tracking-[-0.08em]">{post.title}</h1>
-          <p className="mt-5 text-sm leading-8 text-[var(--slot4-muted-text)]">{summaryText(post) || 'A summary will appear here when available.'}</p>
-          <BodyContent post={post} compact />
+          <p className="mt-5 text-sm leading-8 text-[var(--slot4-muted-text)]">{detailDescription(task, post)}</p>
+          <BodyContent task={task} post={post} compact />
           <div className="mt-6"><RelatedPanel task={task} related={related} /></div>
         </aside>
         <div className="columns-1 gap-6 space-y-6 md:columns-2">
@@ -250,56 +290,67 @@ function BookmarkDetail({ task, post, related }: { task: TaskKey; post: SitePost
   const domainLabel = website ? website.replace(/^https?:\/\//, '').replace(/\/.*$/, '').toUpperCase() : ''
   const tags = Array.isArray(post.tags) ? post.tags.filter((tag): tag is string => typeof tag === 'string' && Boolean(tag.trim())).slice(0, 4) : []
   return (
-    <section className="mx-auto max-w-[1180px] px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
-      <BackLink task={task} />
-      <article className="mt-8 border border-[color:rgba(9,20,19,0.1)] bg-[var(--detail-surface)] shadow-[0_18px_50px_rgba(9,20,19,0.06)]">
-        <div className="border-b border-[color:rgba(9,20,19,0.08)] px-6 py-8 sm:px-10 sm:py-10">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="inline-flex items-center gap-2 border border-[color:rgba(9,20,19,0.12)] bg-white px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--detail-accent)]">
-              <Bookmark className="h-4 w-4" /> Saved link
-            </span>
-            {getEditableCategory(post) ? (
-              <span className="border border-[color:rgba(9,20,19,0.12)] bg-[var(--slot4-cream)] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--slot4-muted-text)]">
-                {getEditableCategory(post)}
-              </span>
-            ) : null}
-          </div>
-          <h1 className="mt-5 max-w-4xl text-4xl font-semibold leading-[0.95] tracking-[-0.08em] sm:text-6xl lg:text-[4.5rem]">{post.title}</h1>
-          <p className="mt-6 max-w-3xl text-base leading-8 text-[var(--slot4-muted-text)]">
-            {summaryText(post) || 'A saved destination with supporting notes, direct access, and a cleaner reading layout.'}
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            {website ? (
-              <Link
-                href={website}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex h-12 items-center gap-2 border border-[var(--detail-text)] px-5 text-sm font-semibold transition hover:bg-[var(--detail-text)] hover:text-white"
-              >
-                Open saved resource <ExternalLink className="h-4 w-4" />
-              </Link>
-            ) : null}
-            
-          </div>
-        </div>
-
-        <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_300px]">
-          <div className="px-6 py-8 sm:px-10 sm:py-10">
-            {tags.length ? (
-              <div className="mb-8 flex flex-wrap gap-3">
-                {tags.map((tag) => (
-                  <span key={tag} className="border border-[color:rgba(9,20,19,0.12)] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--slot4-muted-text)]">
-                    {tag}
+    <section className="border-b border-[color:rgba(9,20,19,0.08)] bg-[var(--detail-bg)]">
+      <div className="mx-auto max-w-[1480px] px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+        <BackLink task={task} />
+        <article className="mt-8 overflow-hidden border border-[color:rgba(9,20,19,0.1)] bg-[var(--detail-surface)] shadow-[0_24px_80px_rgba(9,20,19,0.08)]">
+          <div className="grid lg:grid-cols-[minmax(0,1fr)_380px]">
+            <div className="bg-white px-6 py-8 sm:px-10 sm:py-12 lg:px-12">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="inline-flex items-center gap-2 border border-[color:rgba(9,20,19,0.12)] bg-[var(--slot4-cream)] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--detail-accent)]">
+                  <Bookmark className="h-4 w-4" /> Saved link
+                </span>
+                {getEditableCategory(post) ? (
+                  <span className="border border-[color:rgba(9,20,19,0.12)] bg-white px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--slot4-muted-text)]">
+                    {getEditableCategory(post)}
                   </span>
-                ))}
+                ) : null}
               </div>
-            ) : null}
-            <BodyContent post={post} />
+              <h1 className="mt-6 max-w-5xl text-4xl font-semibold leading-[0.94] tracking-[-0.08em] sm:text-6xl lg:text-[5.2rem]">{post.title}</h1>
+              <p className="mt-7 max-w-3xl text-base leading-8 text-[var(--slot4-muted-text)]">
+                {detailDescription(task, post)}
+              </p>
+              <div className="mt-9 flex flex-wrap gap-3">
+                {website ? (
+                  <Link
+                    href={website}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-12 items-center gap-2 border border-[var(--detail-text)] px-5 text-sm font-semibold transition hover:bg-[var(--detail-text)] hover:text-white"
+                  >
+                    Open saved resource <ExternalLink className="h-4 w-4" />
+                  </Link>
+                ) : null}
+              </div>
+            </div>
+            <aside className="border-t border-[color:rgba(9,20,19,0.08)] bg-[var(--slot4-cream)] p-6 sm:p-8 lg:border-l lg:border-t-0">
+              <div className="border border-[color:rgba(9,20,19,0.12)] bg-white p-5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--slot4-muted-text)]">Destination</p>
+                <p className="mt-4 break-words text-2xl font-semibold tracking-[-0.05em]">{domainLabel || SITE_CONFIG.name}</p>
+              </div>
+              {tags.length ? (
+                <div className="mt-5 grid gap-3">
+                  {tags.map((tag) => (
+                    <span key={tag} className="border border-[color:rgba(9,20,19,0.12)] bg-white px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--slot4-muted-text)]">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </aside>
           </div>
 
-          
-        </div>
-      </article>
+          <div className="grid gap-8 border-t border-[color:rgba(9,20,19,0.08)] px-6 py-8 sm:px-10 sm:py-10 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <div>
+              <BodyContent task={task} post={post} />
+            </div>
+            <aside className="space-y-5">
+              <AboutPanel task={task} post={post} />
+              <RelatedPanel task={task} related={related} />
+            </aside>
+          </div>
+        </article>
+      </div>
     </section>
   )
 }
@@ -342,11 +393,11 @@ function ProfileDetail({ task, post, related }: { task: TaskKey; post: SitePost;
   )
 }
 
-function BodyContent({ post, compact = false }: { post: SitePost; compact?: boolean }) {
-  return <div className={`article-content mt-8 max-w-none ${compact ? 'text-base leading-8' : 'text-lg leading-9'} opacity-85`} dangerouslySetInnerHTML={{ __html: formatPlainText(getBody(post)) }} />
+function BodyContent({ task, post, compact = false }: { task: TaskKey; post: SitePost; compact?: boolean }) {
+  return <div className={`article-content mt-8 max-w-none ${compact ? 'text-base leading-8' : 'text-lg leading-9'} opacity-85`} dangerouslySetInnerHTML={{ __html: formatPlainText(detailBody(task, post)) }} />
 }
 
-function AboutPanel({ task, post }: { task: TaskKey; post: SitePost }) {
+function AboutPanel({ task }: { task: TaskKey; post: SitePost }) {
   const taskConfig = getTaskConfig(task)
   return (
     <div className="border border-[color:rgba(9,20,19,0.1)] bg-white p-5 shadow-[0_18px_50px_rgba(9,20,19,0.05)]">
@@ -354,7 +405,7 @@ function AboutPanel({ task, post }: { task: TaskKey; post: SitePost }) {
       <div className="mt-4 grid gap-3 text-sm text-[var(--slot4-muted-text)]">
         <p className="inline-flex items-center gap-2"><Tag className="h-4 w-4" /> {taskConfig?.label || task}</p>
         <p className="inline-flex items-center gap-2"><Bookmark className="h-4 w-4" /> {SITE_CONFIG.name}</p>
-        {post.publishedAt ? <p>Published {new Date(post.publishedAt).toLocaleDateString()}</p> : null}
+        
       </div>
     </div>
   )
