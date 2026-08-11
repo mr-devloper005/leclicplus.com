@@ -24,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const stripHtml = (value: string) => value.replace(/<[^>]*>/g, ' ')
 const compactText = (value: unknown) => typeof value === 'string' ? stripHtml(value).replace(/\s+/g, ' ').trim().toLowerCase() : ''
 const getContent = (post: SitePost) => post.content && typeof post.content === 'object' ? post.content as Record<string, unknown> : {}
-const compactRaw = (value: unknown) => typeof value === 'string' ? value.trim() : ''
+const _compactRaw = (value: unknown) => typeof value === 'string' ? value.trim() : ''
 const summaryOf = (post: SitePost) => getEditableExcerpt(post, 180)
 
 const matches = (post: SitePost, query: string, category: string, task: string) => {
