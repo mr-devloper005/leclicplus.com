@@ -57,22 +57,14 @@ const getBody = (post: SitePost) => {
 const cleanCopy = (value: string) => value.replace(/\s+/g, ' ').trim()
 
 const detailDescription = (task: TaskKey, post: SitePost) => {
-  const category = categoryOf(post, SITE_CONFIG.name).toLowerCase()
   const raw = cleanCopy(summaryText(post))
-  if (task === 'sbm') {
-    return `A curated ${category} reference with the key context brought forward, so readers can understand the saved resource before opening the original destination.`
-  }
   if (raw) return raw
   return 'A summary will appear here when available.'
 }
 
 const detailBody = (task: TaskKey, post: SitePost) => {
-  const category = categoryOf(post, SITE_CONFIG.name).toLowerCase()
   const rawBody = cleanCopy(getBody(post))
   const rawSummary = cleanCopy(summaryText(post))
-  if (task === 'sbm') {
-    return `This saved collection entry organizes ${post.title} as a focused ${category} resource. Use the destination panel, category label, and related picks to decide whether this reference belongs in your next research step.`
-  }
   if (rawBody && rawBody !== rawSummary) return getBody(post)
   if (rawSummary) return `${rawSummary}\n\nAdditional context, source notes, and supporting details can be added here as this page develops.`
   return getBody(post)
@@ -307,9 +299,6 @@ function BookmarkDetail({ task, post, related }: { task: TaskKey; post: SitePost
                 ) : null}
               </div>
               <h1 className="mt-6 max-w-5xl text-4xl font-semibold leading-[0.94] tracking-[-0.08em] sm:text-6xl lg:text-[5.2rem]">{post.title}</h1>
-              <p className="mt-7 max-w-3xl text-base leading-8 text-[var(--slot4-muted-text)]">
-                {detailDescription(task, post)}
-              </p>
               <div className="mt-9 flex flex-wrap gap-3">
                 {website ? (
                   <Link
